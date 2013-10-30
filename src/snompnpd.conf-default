@@ -1,0 +1,126 @@
+; main section
+[main]
+
+; specify the local ip address to bind in sending SIP messages 
+; dummy automatic discover of local ip (tries reaching snom.com)
+;local_ip = default
+;
+; define a local ip to use
+;local_ip = 172.16.18.40
+;
+; define interface name
+;local_ip = eth0:1
+;
+; define all interface
+local_ip = 0.0.0.0
+
+; specify the PID file
+pid_file = __PIDFILE__
+
+; define a source port for OK and NOTIFY messages
+; ignored in case of local_ip = 0.0.0.0
+;unicast_port = 5071
+
+; log to a remote syslog:
+; syslog syntax is: syslog:ip_server:port:facility
+; here the list of syslog facilities:
+; auth, authpriv, cron, daemon, ftp, kern
+; lpr, mail, news, syslog, user, uucp
+; local0, local1, local2, local3, local4
+; local5, local6, local7
+;log_file = syslog:172.16.18.40:514:daemon
+
+;if you don't define log_file log will be sent to stderr socket
+
+; log to a file
+log_file = __LOGFILE__
+
+; enable debug level: use it only during troubleshooting
+debug = False
+
+; run as daemon, if not true run in foreground
+daemon = True
+
+; Matching rules.
+;
+; * every rule must start with "rule_" prefix.
+; * every rule must contain a regex and subst statement
+; * every rule is checked sequentially, the first match wins
+; * regex statement is a python regular expression evalued against
+;   the SUBSCRIBE phone request
+; * subst statement is used in the body of NOTIFY response
+;   in subst statement you can refer to regex groups
+;
+;   - if subst statement starts with DENY prefix the daemon doesn't send the NOTIFY
+;   and reply with a SIP Response code and message extracted from the DENY statement
+;   Eg.: DENY:401:Unauthorized you're not allowed
+;   reply with a "SIP/2.0 401 Unauthorized you're not allowed" message
+;
+;	- if subst statement is DISCARD the daemon ignore the request: This can be useful in
+;	some installation with multiple PnP deamons running in the same network
+;
+;   - in subst you can refence a group used in regex expression
+;
+;   - the ${local_ip} placeholder will be replaced with local_ip value from [main] section 
+;     $$ is an escape; it is replaced with a single $
+; 
+; for more informations about python regex see: 
+; * http://docs.python.org/2/library/re.html
+; * http://docs.python.org/2/howto/regex.html
+;
+; Every rule can contain a "command" statement that is meant for executing a command if a match is found
+; The command will be spawned with matching group in enviroment variables
+; named like REGEX_GROUP_1 for group 1, REGEX_GROUP_2 for group 2, etc...
+;
+; Example:
+;regex = ^SUBSCRIBE\s.*MAC%3a(.*)@.*\n(.*\n)*Event:\s.*model="snom300";.*\n(.*\n)*
+;                            ^  ^     ^    ^                               ^    ^
+;                            |  |     |    |                               |    |
+;            $REGEX_GROUP_1 -+--+     |    |                               |    |
+;            $REGEX_GROUP_2 ----------+----+                               |    |
+;            $REGEX_GROUP_2 -----------------------------------------------+----+
+
+;
+;[rule_0]
+; case sensitive search for a specific mac address (MAC address is 0004137100D2)
+;regex = ^SUBSCRIBE\s.*MAC%3a(.*)@.*\n(.*\n)*
+;subst = http://provisioning.example.com/prov/myphone-d2.xml
+;command = /tmp/test.sh
+
+;[rule_1]
+; example for a case insensitive search
+;regex = ^(?i)SUBSCRIBE\s.*MAC%3a0004137100d3@.*\n(.*\n)* 
+;subst = http://provisioning.example.com/prov/conf.xml
+
+;[rule_20]
+; deny all snom720 phones with "SIP/401 720 phones aren't allowed" response
+;regex = ^SUBSCRIBE\s.*MAC%3a(.*)@.*\n(.*\n)*Event:\s.*model="snom720";.*\n(.*\n)*
+;subst = DENY:401:Unauthorized 720 phones aren't allowed 
+
+;[rule_3]
+; reply with http://provisioning.example.com/prov/my-760.xml to all snom760 phones
+;regex = ^SUBSCRIBE\s.*MAC%3a(.*)@.*\n(.*\n)*Event:\s.*model="snom760";.*\n(.*\n)*
+;subst = http://provisioning.example.com/prov/my-760.xml
+
+;[rule_4]
+; reply with http://${local_ip}/prov/snom300-HERE_THE_MAC_ADDRESS.htm all snom300 phones
+; device mac address extracted from the group match (.*), used in subst with \1  
+;regex = ^SUBSCRIBE\s.*MAC%3a(.*)@.*\n(.*\n)*Event:\s.*model="snom300";.*\n(.*\n)*
+;subst = http://${local_ip}/prov/snom300-\1.htm
+
+;[rule_5]
+; ignore all snom320 and execute a command
+;regex = ^SUBSCRIBE\s.*MAC%3a(.*)@.*\n(.*\n)*Event:\s.*model="snom320";.*\n(.*\n)*
+;subst = DISCARD
+;command = /opt/snompnpd/logdeny.sh
+
+;[rule_6]
+; DENY all
+;regex = (.*\n)*
+;subst = DENY:404:Not found
+
+[rule_99]
+;extract mac address and model from request:
+;mac is \1 model is \3
+regex = ^SUBSCRIBE\s.*MAC%3a(.*)@.*\n(.*\n)*Event:\s.*model="(.*)";.*\n(.*\n)*
+subst = http://provisioning.snom.com/\3/\3.php?mac=\1

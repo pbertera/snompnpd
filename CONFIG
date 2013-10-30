@@ -1,0 +1,27 @@
+# Installation directory
+DESTDIR=/opt/snompnpd
+
+# Python modules installation directory
+PYTHON_LIB=$(DESTDIR)/lib/python
+
+# init.d directory
+INITDIR=$(DESTDIR)/etc/init.d
+
+# Where the main script will be placed
+DAEMONDIR=$(DESTDIR)/usr/sbin
+
+# Config dir
+CONFDIR=$(DESTDIR)/etc
+
+# Files Ownership
+USER=root
+GROUP=root
+
+# Pidfile (see also pidfile in intit script)
+PIDFILE=/var/run/snompnpd.pid
+
+# Default logfile
+LOGFILE=/var/log/snompnpd.log
+
+# Target distro (supported: rh,deb)
+TARGET=rh

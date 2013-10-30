@@ -1,0 +1,12 @@
+INSTALL steps:
+
+* modify the DESTDIR and other variables in CONFIG
+
+* run "make install"
+
+* previous command will install: 
+  - the main script in: ${DAEMONDIR}/snompnpd
+  - config file in: ${CONFDIR}/snompnpd.conf
+  - init script in: ${DESTDIR}/etc/init.d/snompnpd
+
+* please read ${DESTDIR}/snompnpd.conf default config file for further information

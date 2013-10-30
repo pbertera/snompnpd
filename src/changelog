@@ -1,0 +1,33 @@
+snompnpd (0.0.5-1) stable; urgency=low
+
+  * binding to multiple address support
+  * introduced command execution on matched requests
+
+ -- Pietro Bertera <pietro.bertera@snom.com>  Tue, 29 Oct 2013 10:02:31 +0100
+
+snompnpd (0.0.4-1) stable; urgency=low
+
+  * Improved Makefile and installation process
+  * added snomprovisioning python packages with daemon and sip modules
+
+ -- Pietro Bertera <pietro.bertera@snom.com>  Tue, 27 Mar 2013 19:22:21 +0100
+
+snompnpd (0.0.3-1) stable; urgency=low
+
+  * added "DISCARD" rule
+
+ -- Pietro Bertera <pietro.bertera@snom.com>  Tue, 27 Mar 2013 19:22:21 +0100
+
+snompnpd (0.0.2-1) stable; urgency=low
+
+  * added ${local_ip} placeholder support in subst definition
+  * added validation of ip address in local_ip
+  * added ip address discovery via net device name
+
+ -- Pietro Bertera <pietro.bertera@snom.com>  Tue, 19 Mar 2013 19:17:53 +0100
+
+snompnpd (0.0.1-1) stable; urgency=low
+
+  * Initial packaging
+
+ -- Pietro Bertera <pietro.bertera@snom.com>  Mon, 18 Feb 2013 15:24:11 +0100

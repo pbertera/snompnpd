@@ -1,0 +1,70 @@
+#! /bin/sh
+#
+
+DESTDIR=__DESTDIR__
+NAME=snompnpd
+DAEMON=__DAEMONDIR__/$NAME
+PIDFILE=__PIDFILE__
+VERSION="__VERSION__"
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+DESC="snom PnP Provisioning Daemon $VERSION"
+CONF_FILE=__CONFDIR__/snompnpd.conf
+
+export PYTHONPATH=$PYHONPATH:"__PYTHON_LIB__"
+
+test -f ${DAEMON} || exit 1
+test -f ${CONF_FILE} || exit 1
+
+set -e
+
+get_start() {
+        PARAMS="-s $CONF_FILE"
+        START="--start --quiet --pidfile ${PIDFILE} --startas ${DAEMON} -- ${PARAMS}"
+}
+
+case "$1" in
+  start)
+        echo -n "Starting $DESC: "
+        get_start
+        if start-stop-daemon ${START} >/dev/null ; then
+                echo "snom PnP Daemon."
+        else
+                if start-stop-daemon --test ${START} >/dev/null 2>&1; then
+                        echo "(failed)."
+                        exit 1
+                else
+                        echo "(already running)."
+                        exit 0
+                fi
+        fi
+        ;;
+  stop)
+        echo -n "Stopping $DESC: "
+        if start-stop-daemon --stop --quiet --pidfile ${PIDFILE} \
+                --retry 10 >/dev/null ; then
+                echo "snom PnP Daemon."
+        else
+                if start-stop-daemon --test ${START} >/dev/null 2>&1; then
+                        echo "(not running)."
+                        exit 0
+                else
+                        echo "(failed)."
+                        exit 1
+                fi
+        fi
+        ;;
+  reload)
+        echo "Reloading not available, stop and start the daemon again or run restart"
+        ;;
+  restart|force-reload)
+        $0 stop
+        exec $0 start
+        ;;
+  *)
+        N=/etc/init.d/snompnpd
+        echo "Usage: $N {start|stop|restart|force-reload}" >&2
+        exit 1
+        ;;
+esac
+
+exit 0
