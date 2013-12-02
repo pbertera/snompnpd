@@ -243,3 +243,6 @@ You can configure the *debug=True* statement in config file and in order to log 
 ## Usage
 
 This software is released for didactical and debugging purposes. You're free to use it at your own risk. You can modify and redistribute this program under the [LGPLv3](http://www.gnu.org/licenses/lgpl-3.0.txt) license terms.
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/pbertera/snompnpd/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
