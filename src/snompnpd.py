@@ -74,7 +74,7 @@ class MCastServer:
     def __init__(self, local_ip,
             regex=[r'^SUBSCRIBE\s.*MAC%3a(.*)@.*\n(.*\n)*Event:\s.*model="(.*)";.*\n(.*\n)*'],
             subst=[r'http://provisioning.snom.com/\3/\3.php?mac=\1'], run_commands=[], mcast=True, mport=5060, uport=5060):
-    
+
         self.mcast = mcast
         self.port = mport #listen port for multicast requests
         self.uni_port = uport #source port for unicast requests
@@ -88,7 +88,7 @@ class MCastServer:
         DebugMessage("Local unicast IP: %s" % self.local_ip)
         DebugMessage("Multicast listening IP: %s" % self.listen_addr)
 
-        
+
         self.recvsocket = self._create_mcast_socket()
         self.regex = []
 
@@ -96,7 +96,7 @@ class MCastServer:
             try:
                 self.regex.append(re.compile(x, re.MULTILINE))
             except Exception:
-                raise InvalidRegexError(x)          
+                raise InvalidRegexError(x)
 
         self.subst = subst
         self.run_commands = run_commands
@@ -142,7 +142,7 @@ class MCastServer:
                         response.headers['expires'] = 0
                         response.headers['via'] = request.headers['via']
                         response.headers['contact'] = "<sip:%s:%d;transport=udp;handler=dum>" % (self.local_ip, self.uni_port)
-                        response.headers['content-length'] = 0  
+                        response.headers['content-length'] = 0
                         #Regexp parsing via Header: SIP/2.0/UDP 172.16.18.90:5060;rport
                         p = re.compile(r'SIP/(.*)/(.*)\s(.*):([0-9]*);*')
                         m = p.search(request.headers['via'])
@@ -150,7 +150,7 @@ class MCastServer:
                         if m:
                             version = m.group(1)
                             transport = m.group(2)
-                            if version != "2.0": 
+                            if version != "2.0":
                                 UnsupportedSIPVersion("Unsupported SIP version in Via: header: %s" % version)
                                 continue
                             phone_ip = m.group(3)
@@ -158,8 +158,8 @@ class MCastServer:
                             #phone_port = "5060"
                         else:
                             Error("Wrong Via: header")
-                
-                        if transport.upper() == "UDP": 
+
+                        if transport.upper() == "UDP":
                             DebugMessage("Creating send socket")
                             try:
                                 self.sendsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -188,7 +188,7 @@ class MCastServer:
                                 self.sendsock.bind((self.local_ip, self.uni_port))
                             except Exception, e:
                                 SendDataError("Cannot bind socket to %s:%d: %s" % (self.local_ip, self.uni_port, e))
-                        
+
                         # sent the OK (or 404 if DENY)
                         try:
                             DebugMessage("Sending response to %s:%s : \n%s" % (phone_ip, phone_port, str(response)))
@@ -202,15 +202,33 @@ class MCastServer:
                         if self.subst[self.matched_rule_index].startswith("DENY:"):
                             self.sendsock.close()
                             continue
-                        
+
                         # create the NOTIFY message
                         cseq = int(request.headers['cseq'].split()[0]) + 2
 
-                        DebugMessage("Forging NOTIFY")      
+                        DebugMessage("Forging NOTIFY")
                         notify = sip.Request()
                         notify.method = "NOTIFY"
                         notify.version ="2.0"
+                        # Build the URI using IP and Port,
                         notify.uri = "sip:%s:%s" % (phone_ip, phone_port)
+                        if request.headers.has_key("contact"):
+                            uri_regex = re.compile("sip:([^@]*)@([^>$]*)")
+                            addr_regex = re.compile("sip:([^ ;>$]*)")
+                            md = uri_regex.search(request.headers["contact"])
+                            if md: # Contact: contains a SIP URI
+                                notify.uri = "sip:%s@%s" % (md.group(1), md.group(2))
+                                DebugMessage("Found URI in SUBSCRIBE Contact")
+                            else:
+                                md = addr_regex.search(request.headers["contact"])
+                                if md: # Contact: contains an address
+                                    notify.uri = "sip:" + md.group(1)
+                                    DebugMessage("Found Address in SUBSCRIBE Contact")
+                                else: # Malformed Contact?
+                                    InfoMessage("Found Nothing in SUBSCRIBE Contact")
+                        else:
+                            InfoMessage("Contact header not found in SUBSCRIBE")
+
                         notify.headers['via'] = request.headers['via']
                         notify.headers['max-forwards'] = 20
                         notify.headers['to'] = request.headers['to']
@@ -220,7 +238,7 @@ class MCastServer:
                         notify.headers['content-type'] = "application/url"
                         notify.headers['subscription-state'] = "terminated;reason=timeout"
                         notify.headers['event'] = 'ua-profile;profile-type="device";vendor="OEM";model="OEM";version="7.1.19"'
-                        
+
                         try:
                             if self.local_ip == "0.0.0.0":
                                 self.sendsock.connect((phone_ip, int(phone_port)))
@@ -230,20 +248,20 @@ class MCastServer:
                                 DebugMessage("Using local Port: %s" % port)
                                 notify.headers['contact'] = "<sip:%s:%d;transport=udp;handler=dum>" % (ip, port)
                                 subst = Template(self.subst[self.matched_rule_index]).substitute(local_ip=ip)
-                                body = self.regex[self.matched_rule_index].sub(subst, str(request))  
-                            else:   
+                                body = self.regex[self.matched_rule_index].sub(subst, str(request))
+                            else:
                                 notify.headers['contact'] = "<sip:%s:%d;transport=udp;handler=dum>" % (self.local_ip, self.uni_port)
                                 subst = Template(self.subst[self.matched_rule_index]).substitute(local_ip=local_ip)
-                                body = self.regex[self.matched_rule_index].sub(subst, str(request))  
-                                
+                                body = self.regex[self.matched_rule_index].sub(subst, str(request))
+
                             notify.body = body
-                            notify.headers['content-length'] = "%d" % len(body) 
+                            notify.headers['content-length'] = "%d" % len(body)
                             DebugMessage("Sending NOTIFY to %s:%s : \n%s" % (phone_ip, phone_port, str(notify)))
                             self.sendsock.send(str(notify))
                         except Exception, e:
                             SendDataError("Cannot send NOTIFY request to %s:%s: %s" % (phone_ip, phone_port, e))
                         self.sendsock.close()
-                
+
     def check_request(self, request):
         i = 0
         self.matched_rule_index = 0
@@ -257,7 +275,7 @@ class MCastServer:
             DebugMessage("Pattern: %s" % r.pattern)
             DebugMessage("Subst: %s" % self.subst[i])
             try:
-                #if self.local_ip == "0.0.0.0": 
+                #if self.local_ip == "0.0.0.0":
                     #DebugMessage("Applying temporary local_ip = 0.0.0.0 substitution")
                     #tmp_sub = Template(self.subst[i].substitute(local_ip=local_ip))
                 #res = r.sub(self.subst[i], str(request))
@@ -273,7 +291,7 @@ class MCastServer:
                 InfoMessage("snom PnP matching request found: rule number: %d" % i)
                 m = r.search(str(request))
                 if m:
-                    self.matched_groups = m.groups() 
+                    self.matched_groups = m.groups()
                 #DebugMessage("Result: %s" % res)
                 self.matched_rule_index = i
                 n = 1
@@ -285,7 +303,7 @@ class MCastServer:
                     command_env["RULE_IDX"] = "%d" % i
                     n = n + 1
                 if self.run_commands[self.matched_rule_index]:
-                    try: 
+                    try:
                         DebugMessage("External command env: %s" % command_env)
                         DebugMessage("Execuding external command: %s" % self.run_commands[self.matched_rule_index])
                         command_pid = subprocess.Popen(shlex.split(self.run_commands[self.matched_rule_index]), env=command_env).pid
@@ -353,14 +371,14 @@ def get_ip_address_ifname(iface):
     )[20:24])
 
 if __name__ == '__main__':
-    
+
     def usage():
         print "\nUsage: %s [options] <config-file>" % sys.argv[0]
         print "\n\tOptions:"
         print "\t\t-c <config-file>\t\tRead a SIP request from stdin and print the response, useful for testing rules"
         print "\t\t-s <config-file>\t\tStart the program"
         sys.exit()
-    
+
     def signal_handler(signal, frame):
         InfoMessage('Killed by SIGTERM. Goodbye.')
         sys.exit(0)
@@ -372,26 +390,26 @@ if __name__ == '__main__':
     if len(sys.argv) < 3:
         print "\nERROR: missing args."
         usage()
-    
+
     if sys.argv[1] not in ["-c", "-s"]:
         print "\nERROR: wrong arg."
         usage()
 
     config = ConfigParser.RawConfigParser()
     config.read(sys.argv[2])
-    
+
     try:
         debug = config.get('main', 'debug')
         if debug.upper() == 'TRUE':
             logger.setLevel(logging.DEBUG)
             DebugMessage("Log level: DEBUG")
-        
+
     except ConfigParser.NoOptionError:
-        pass    
-    
+        pass
+
     try:
         uport = int(config.get('main', 'unicast_port'))
-        DebugMessage("Using %d as unicast port" % int(uport))   
+        DebugMessage("Using %d as unicast port" % int(uport))
     except ConfigParser.NoOptionError:
         uport = 5060
     try:
@@ -399,7 +417,7 @@ if __name__ == '__main__':
         if is_valid_ipv4_address(conf_local_ip):
             local_ip = conf_local_ip
             DebugMessage("local_ip: %s" % local_ip)
-            
+
         elif conf_local_ip == "default": #if loca_if == "default" try to reach snom.com
             try:
                 local_ip = get_ip_address()
@@ -414,12 +432,12 @@ if __name__ == '__main__':
                 ConfigError("cannot determine ip address of %s interface: %s" % (conf_local_ip, e))
                 sys.exit(1)
 
-    except ConfigParser.NoOptionError:  
+    except ConfigParser.NoOptionError:
         ConfigError("Missing mandatory parameters in config file, bailing out!")
         sys.exit(1)
 
     try:
-        log_file = config.get('main', 'log_file')       
+        log_file = config.get('main', 'log_file')
         if log_file.startswith("syslog"):
             try:
                 syslog_host = log_file.split(":")[1]
@@ -433,7 +451,7 @@ if __name__ == '__main__':
                 syslog_facility = log_file.split(":")[3]
             except IndexError:
                 syslog_facility = logging.handlers.SysLogHandler.LOG_USER
-            DebugMessage("Logging to syslog (host: %s, port: %s, facility: %s)" % ((syslog_host, syslog_port, syslog_facility)))    
+            DebugMessage("Logging to syslog (host: %s, port: %s, facility: %s)" % ((syslog_host, syslog_port, syslog_facility)))
             conf_log_handler = logging.handlers.SysLogHandler((syslog_host, syslog_port), syslog_facility)
         else:
             DebugMessage("Logging to file: %s" % log_file)
@@ -443,11 +461,11 @@ if __name__ == '__main__':
         logger.removeHandler(log_handler)
         logger.addHandler(conf_log_handler)
 
-        InfoMessage("New server started")   
-    except ConfigParser.NoOptionError:  
+        InfoMessage("New server started")
+    except ConfigParser.NoOptionError:
         # no log defined in config file
         pass
-    
+
     regex = []
     subst = []
     run_commands = []
@@ -460,7 +478,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     InfoMessage("Valuating config sections order: %s" % rules)
-        
+
     for s in rules:
         if s.startswith("rule_"):
             DebugMessage("Rule: %s" % s)
@@ -481,9 +499,9 @@ if __name__ == '__main__':
             regex.append(ur'%s' % reg)
             subst.append(ur'%s' % sub)
             run_commands.append(command)
-   
+
     server = MCastServer(local_ip=local_ip, regex=regex, subst=subst, run_commands=run_commands, uport=uport)
-    
+
     if sys.argv[1] == "-c":
         request = "".join(sys.stdin.readlines())
         print "=== Request ==="
