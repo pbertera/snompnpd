@@ -192,7 +192,7 @@ class MCastServer:
                         # sent the OK (or 404 if DENY)
                         try:
                             DebugMessage("Sending response to %s:%s : \n%s" % (phone_ip, phone_port, str(response)))
-                            self.sendsock.send(str(response))
+                            self.sendsock.sendto(str(response), (phone_ip, int(phone_port)))
                         except Exception, e:
                             SendDataError("Cannot send OK/DENY response to %s:%s: %s" % (phone_ip, phone_port, e))
                             self.sendsock.close()
@@ -257,7 +257,7 @@ class MCastServer:
                             notify.body = body
                             notify.headers['content-length'] = "%d" % len(body)
                             DebugMessage("Sending NOTIFY to %s:%s : \n%s" % (phone_ip, phone_port, str(notify)))
-                            self.sendsock.send(str(notify))
+                            self.sendsock.sendto(str(notify), (phone_ip, int(phone_port)))
                         except Exception, e:
                             SendDataError("Cannot send NOTIFY request to %s:%s: %s" % (phone_ip, phone_port, e))
                         self.sendsock.close()

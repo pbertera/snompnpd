@@ -1,5 +1,11 @@
 snompnpd (0.0.5-1) stable; urgency=low
 
+  * fixed small bug in send() udp function
+
+ -- Pietro Bertera <pietro.bertera@snom.com> Tue, 06 Mar 2018 15:41:32 +0100
+
+snompnpd (0.0.5-1) stable; urgency=low
+
   * binding to multiple address support
   * introduced command execution on matched requests
 

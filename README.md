@@ -240,6 +240,15 @@ Content of */tmp/unwanted-snom300.log*:
 
 You can configure the *debug=True* statement in config file and in order to log all SIP messages and daemon activities. Using *daemon=False* the process will not detached, without defining a *log_file* all log messages will be printed on stdout.
 
+## Multiple networks
+
+In case your host is using more than one network interface you should make sure the multicast address *sip.mcast.net* is boud to the proper interface. By default is bound to the default network device, in case you want to change it you shoud create a static route:
+
+*Tho following command will bind the sip.mcast.net address to the network device eth1:*
+
+    sudo ip route add 224.0.1.75 dev eth1
+
+
 ## Usage
 
 This software is released for didactical and debugging purposes. You're free to use it at your own risk. You can modify and redistribute this program under the [LGPLv3](http://www.gnu.org/licenses/lgpl-3.0.txt) license terms.
